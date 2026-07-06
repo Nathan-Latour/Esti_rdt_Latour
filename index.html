@@ -1,0 +1,2014 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Comptage grappes par placette</title>
+  <style>
+    :root {
+      --navy:#0b1f3a; --navy2:#102f56; --blue:#1f6feb; --bg:#f4f7fb; --card:#ffffff; --border:#d9e2ef;
+      --text:#142033; --muted:#69788f; --ok:#117a52; --danger:#b42318; --warn:#b54708; --soft:#eef4ff;
+      --touch:52px; --shadow:0 10px 25px rgba(20,32,51,.06);
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); }
+    header { background:linear-gradient(135deg,var(--navy),var(--navy2)); color:white; padding:20px 16px 24px; position:sticky; top:0; z-index:5; box-shadow:0 8px 24px rgba(11,31,58,.20); }
+    header h1 { margin:0; font-size:1.25rem; line-height:1.2; }
+    header p { margin:.35rem 0 0; color:#d7e6ff; font-size:.9rem; }
+    main { max-width:1150px; margin:0 auto; padding:16px; padding-bottom:92px; }
+    .panel { background:var(--card); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); padding:16px; margin-bottom:14px; }
+    .grid { display:grid; gap:12px; }
+    .grid-4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+    .grid-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .grid-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    label { display:block; font-weight:700; font-size:.82rem; margin-bottom:6px; color:#263b58; }
+    select, input[type="text"], input[type="number"], input[type="date"], textarea { width:100%; border:1px solid var(--border); background:white; border-radius:12px; padding:12px 12px; min-height:var(--touch); font-size:16px; color:var(--text); outline:none; }
+    select:focus, input:focus, textarea:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,111,235,.12); }
+    textarea { min-height:44px; resize:vertical; }
+    .meta { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
+    .pill { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:7px 10px; background:var(--soft); color:#173860; font-weight:700; font-size:.82rem; }
+    .pill.ok { background:#eaf7f0; color:var(--ok); }
+    .pill.warn { background:#fff4e5; color:var(--warn); }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    button { appearance:none; border:none; border-radius:12px; padding:12px 14px; min-height:var(--touch); font-weight:800; font-size:1rem; cursor:pointer; background:#e8eef8; color:#18314f; touch-action:manipulation; }
+    button.primary { background:var(--blue); color:white; }
+    button.navy { background:var(--navy); color:white; }
+    button.danger { background:#fee4e2; color:var(--danger); }
+    button:active { transform:translateY(1px); }
+    button.mini { padding:8px 11px; min-height:40px; font-size:.86rem; border-radius:10px; }
+    .foot-tools { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .legend { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .legend span { display:inline-flex; align-items:center; gap:6px; font-size:.82rem; font-weight:800; color:#29405f; }
+    .swatch { width:18px; height:18px; border-radius:5px; border:1px solid rgba(0,0,0,.15); display:inline-block; }
+    .swatch.missing { background:#595959; } .swatch.mixed { background:#b6d7a8; } .swatch.young { background:#9fc5e8; }
+    .feet-grid { display:grid; grid-template-columns:1fr; gap:12px; }
+    .foot { background:#fbfdff; border:1px solid var(--border); border-radius:18px; padding:13px; scroll-margin-top:120px; }
+    .foot { max-width:760px; width:100%; margin:0 auto; }
+    .foot-body { display:grid; gap:10px; }
+    .foot-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; }
+    .foot-title { font-size:1.02rem; font-weight:900; color:var(--navy); }
+    .saved-dot { width:10px; height:10px; border-radius:50%; background:#c8d3e3; display:inline-block; }
+    .saved-dot.saved { background:var(--ok); }
+    .grape-row { display:grid; grid-template-columns:minmax(0,1fr) 110px; gap:12px; align-items:center; }
+    input[type="range"] { width:100%; accent-color:var(--blue); min-height:38px; }
+    .step-row { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }
+    .step-btn { min-height:46px; padding:8px 6px; font-size:1rem; border-radius:14px; background:#edf3ff; color:#0b3d76; }
+    .step-btn.plus { background:#e8f5ee; color:#0f6845; }
+    .step-btn.minus { background:#fff0ed; color:#9b2c1f; }
+    .checks { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+    .check { border:1px solid var(--border); background:white; border-radius:12px; padding:10px 8px; min-height:46px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:800; font-size:.86rem; user-select:none; touch-action:manipulation; }
+    .check input { width:18px; height:18px; accent-color:var(--blue); }
+    .check.active { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,111,235,.10); background:#f2f7ff; }
+    .check.missing { color:var(--danger); }
+    .check.missing.active { background:#fff3f2; border-color:#f4b0aa; }
+    .summary { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+    .stat { background:#f7faff; border:1px solid var(--border); border-radius:14px; padding:12px; }
+    .stat small { color:var(--muted); font-weight:700; }
+    .stat strong { display:block; font-size:1.35rem; margin-top:4px; color:var(--navy); }
+    .bottom-bar { position:sticky; bottom:0; z-index:4; background:rgba(244,247,251,.92); backdrop-filter:blur(8px); border-top:1px solid var(--border); padding:12px 16px; margin:20px -16px -16px; }
+    .tiny { color:var(--muted); font-size:.84rem; }
+    .hidden { display:none !important; }
+    .progress-wrap { margin-top:10px; height:10px; background:#dfe7f3; border-radius:999px; overflow:hidden; }
+    .progress { height:100%; background:var(--ok); width:0%; }
+    .toast { position:fixed; left:50%; bottom:92px; transform:translateX(-50%); background:var(--navy); color:white; padding:12px 16px; border-radius:999px; font-weight:800; box-shadow:0 8px 30px rgba(0,0,0,.22); opacity:0; pointer-events:none; transition:.2s; z-index:20; }
+    .mobile-sticky { position:fixed; left:0; right:0; bottom:0; z-index:12; display:none; grid-template-columns:1fr 1.35fr 1fr; gap:8px; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:rgba(244,247,251,.96); backdrop-filter:blur(10px); border-top:1px solid var(--border); box-shadow:0 -8px 24px rgba(20,32,51,.10); }
+    .mobile-sticky button { min-height:50px; }
+    .section-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+    .section-title h2 { margin:0; color:var(--navy); font-size:1.08rem; }
+    .toast.show { opacity:1; }
+    details summary { cursor:pointer; font-weight:900; color:var(--navy); }
+    .table-small { width:100%; border-collapse:collapse; margin-top:10px; font-size:.85rem; }
+    .table-small th, .table-small td { border-bottom:1px solid var(--border); padding:7px; text-align:left; }
+    .table-small th { background:#f4f7fb; }
+    @media (max-width:900px) { .grid-4,.grid-3 { grid-template-columns:repeat(2,minmax(0,1fr)); } .summary { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:640px) {
+      header { padding:12px 14px 14px; } header h1 { font-size:1.05rem; } header p { font-size:.78rem; } main { padding:10px 10px 96px; } .panel { border-radius:16px; padding:12px; margin-bottom:10px; }
+      .grid-4,.grid-3,.grid-2,.feet-grid { grid-template-columns:1fr; }
+      .checks { grid-template-columns:repeat(3,1fr); gap:7px; } .check { padding:9px 4px; font-size:.78rem; }
+      .summary { grid-template-columns:repeat(2,1fr); gap:8px; } .stat { padding:10px; } .stat strong { font-size:1.1rem; }
+      .foot { padding:12px; border-radius:16px; max-width:100%; } .foot-title { font-size:1rem; } .grape-row { grid-template-columns:minmax(0,1fr) 96px; }
+      .actions button { flex:1 1 auto; } .desktop-nav { display:none; } .mobile-sticky { display:grid; }
+      #dataTable { font-size:.78rem; }
+    }
+    @media (display-mode: standalone) { header { padding-top:calc(18px + env(safe-area-inset-top)); } }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Comptage grappes par parcelles et placettes</h1>
+  <p>Base 10 pieds par placette, ajustable · curseur au pas de 0,5 · Jeunes / Mélange / Manquants · sauvegarde locale</p>
+</header>
+<main>
+  <section class="panel">
+    <div class="grid grid-4">
+      <div><label for="operator">Opérateur</label><input id="operator" type="text" placeholder="Nom / initiales"></div>
+      <div><label for="date">Date</label><input id="date" type="date"></div>
+      <div><label for="parcelSelect">Parcelle</label><select id="parcelSelect"></select></div>
+      <div><label for="plotSelect">Placette</label><select id="plotSelect"></select></div>
+    </div>
+    <div class="meta">
+      <span class="pill" id="cepagePill">Cépage : -</span>
+      <span class="pill" id="plotPill">Repère : -</span>
+      <span class="pill ok" id="savedPill">0 / 0 placettes saisies</span>
+      <span class="pill warn" id="localPill">Sauvegarde navigateur active</span>
+    </div>
+    <div class="progress-wrap"><div class="progress" id="progress"></div></div>
+  </section>
+
+  <section class="panel">
+    <div class="grid grid-2">
+      <div><label for="sliderMax">Maximum du curseur</label><input id="sliderMax" type="number" min="5" max="80" step="0.5" value="20"></div>
+      <div><label for="comment">Commentaire placette</label><textarea id="comment" placeholder="Facultatif"></textarea></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="summary" id="summary"></div>
+  </section>
+
+  <section class="panel">
+    <div class="actions desktop-nav" style="justify-content:space-between;margin-bottom:12px;">
+      <div class="actions">
+        <button id="prevPlot">← Placette précédente</button>
+        <button id="nextPlot">Placette suivante →</button>
+      </div>
+      <button class="primary" id="saveBtn">Enregistrer la placette</button>
+    </div>
+    <div class="foot-tools">
+      <div class="actions">
+        <button id="addFoot" class="mini">+ Ajouter un pied</button>
+        <button id="removeFoot" class="mini danger">− Supprimer le dernier pied</button>
+        <span class="tiny" id="footCountInfo">10 pieds</span>
+      </div>
+      <div class="legend">
+        <span><i class="swatch missing"></i>Manquants</span>
+        <span><i class="swatch mixed"></i>Mélange</span>
+        <span><i class="swatch young"></i>Jeunes</span>
+      </div>
+    </div>
+    <div class="feet-grid" id="feetGrid"></div>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary>Voir le parcellaire intégré</summary>
+      <div style="overflow:auto; max-height:380px;"><table class="table-small" id="dataTable"></table></div>
+    </details>
+  </section>
+
+  <section class="panel">
+    <h2 style="margin:0 0 10px;font-size:1.1rem;color:var(--navy);">Import / sauvegarde</h2>
+    <p class="tiny">Le JSON sert de sauvegarde complète. Le CSV long est le format BDD le plus robuste pour analyser ensuite dans Excel/R/QGIS.</p>
+    <div class="actions">
+      <button class="navy" id="exportExcelTable">Exporter Excel par parcelle</button>
+      <button id="exportCsv">Exporter CSV long</button>
+      <button id="exportSummary">Exporter synthèse placettes</button>
+      <button id="exportJson">Exporter sauvegarde JSON</button>
+      <label class="check" style="cursor:pointer;"><input id="importJson" type="file" accept=".json" style="display:none;">Importer JSON</label>
+      <button class="danger" id="clearCurrent">Effacer placette</button>
+      <button class="danger" id="clearAll">Tout réinitialiser</button>
+    </div>
+  </section>
+</main>
+<div class="mobile-sticky">
+  <button id="prevPlotSticky">← Préc.</button>
+  <button class="primary" id="saveBtnSticky">Enregistrer</button>
+  <button id="nextPlotSticky">Suiv. →</button>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const PARCELLES = [
+  {
+    "parcelle": "artigues_centre_1",
+    "cepage": "Cs",
+    "values": [
+      "5_37",
+      "8_13"
+    ]
+  },
+  {
+    "parcelle": "artigues_centre_2",
+    "cepage": "Cs",
+    "values": [
+      "3_8",
+      "3_89"
+    ]
+  },
+  {
+    "parcelle": "artigues_centre_3",
+    "cepage": "M",
+    "values": [
+      "2_19",
+      "3_42",
+      "4_71"
+    ]
+  },
+  {
+    "parcelle": "artigues_centre_4",
+    "cepage": "CS",
+    "values": [
+      "10_6",
+      "17_89",
+      "24_43",
+      "31_19",
+      "38_75"
+    ]
+  },
+  {
+    "parcelle": "artigues_centre_5",
+    "cepage": "CS",
+    "values": [
+      "7_37",
+      "18_8",
+      "27_20"
+    ]
+  },
+  {
+    "parcelle": "artigues_la_gravette",
+    "cepage": "CS",
+    "values": [
+      "6_14",
+      "11_36",
+      "16_55"
+    ]
+  },
+  {
+    "parcelle": "artigues_le_bois_1",
+    "cepage": "Cs",
+    "values": [
+      "6_14",
+      "18_46",
+      "25_24",
+      "35_8",
+      "46_37"
+    ]
+  },
+  {
+    "parcelle": "artigues_le_bois_2",
+    "cepage": "M",
+    "values": [
+      "4_11",
+      "11_40",
+      "18_22",
+      "20_49",
+      "34_13",
+      "37_43",
+      "48_20",
+      "55_60"
+    ]
+  },
+  {
+    "parcelle": "artigues_le_bois_3",
+    "cepage": "Cs",
+    "values": [
+      "3_15",
+      "12_41",
+      "21_22",
+      "30_23",
+      "39_45"
+    ]
+  },
+  {
+    "parcelle": "artigues_le_bois_4",
+    "cepage": "Cs",
+    "values": [
+      "5_13",
+      "14_42",
+      "23_28",
+      "32_14",
+      "41_48"
+    ]
+  },
+  {
+    "parcelle": "artigues_le_bois_5",
+    "cepage": "Cs",
+    "values": [
+      "4_7",
+      "9_28",
+      "13_54"
+    ]
+  },
+  {
+    "parcelle": "artigues_le_bois_6",
+    "cepage": "Cs",
+    "values": [
+      "5_11",
+      "15_47",
+      "25_28",
+      "35_11",
+      "40_46"
+    ]
+  },
+  {
+    "parcelle": "artigues_les_chevres_1",
+    "cepage": "M",
+    "values": [
+      "4_22",
+      "10_30",
+      "16_7",
+      "23_55",
+      "30_16"
+    ]
+  },
+  {
+    "parcelle": "artigues_les_chevres_2",
+    "cepage": "M",
+    "values": [
+      "7_56",
+      "16_8",
+      "25_35",
+      "34_61",
+      "46_9"
+    ]
+  },
+  {
+    "parcelle": "artigues_les_chevres_3",
+    "cepage": "Cs",
+    "values": [
+      "6_8",
+      "16_26",
+      "27_20",
+      "38_8",
+      "51_38"
+    ]
+  },
+  {
+    "parcelle": "artigues_planteyrot_1",
+    "cepage": "M",
+    "values": [
+      "2_7",
+      "4_14"
+    ]
+  },
+  {
+    "parcelle": "artigues_planteyrot_2",
+    "cepage": "M",
+    "values": [
+      "2_24",
+      "3_7"
+    ]
+  },
+  {
+    "parcelle": "artigues_planteyrot_3",
+    "cepage": "Cs",
+    "values": [
+      "6_8",
+      "10_30",
+      "15_18",
+      "22_6",
+      "30_28"
+    ]
+  },
+  {
+    "parcelle": "artigues_roseaux",
+    "cepage": "M",
+    "values": [
+      "4_12",
+      "12_53",
+      "19_12",
+      "25_41"
+    ]
+  },
+  {
+    "parcelle": "artigues_triau_bas_2",
+    "cepage": "M",
+    "values": [
+      "2_7",
+      "9_43",
+      "16_7",
+      "26_26"
+    ]
+  },
+  {
+    "parcelle": "artigues_triau_haut_1",
+    "cepage": "M",
+    "values": [
+      "4_10",
+      "13_70",
+      "21_36",
+      "27_9",
+      "34_73"
+    ]
+  },
+  {
+    "parcelle": "artigues_virage",
+    "cepage": "CS",
+    "values": [
+      "6_9",
+      "16_54",
+      "27_31",
+      "39_45",
+      "51_05"
+    ]
+  },
+  {
+    "parcelle": "berret_1",
+    "cepage": "M",
+    "values": [
+      "8_8",
+      "24_54",
+      "40_32",
+      "56_10",
+      "70_53",
+      "103_13"
+    ]
+  },
+  {
+    "parcelle": "berret_2",
+    "cepage": "M",
+    "values": [
+      "3_21",
+      "6_36",
+      "24_9",
+      "38_56",
+      "52_35",
+      "66_8",
+      "80_55"
+    ]
+  },
+  {
+    "parcelle": "berret_3",
+    "cepage": "M",
+    "values": [
+      "3_13",
+      "9_84",
+      "15_46",
+      "23_20",
+      "31_38"
+    ]
+  },
+  {
+    "parcelle": "bois_de_la_tour",
+    "cepage": "M",
+    "values": [
+      "7_3",
+      "35_51",
+      "40_6",
+      "66_112",
+      "70_50",
+      "75_6"
+    ]
+  },
+  {
+    "parcelle": "canaires",
+    "cepage": "Cs",
+    "values": [
+      "15_9",
+      "30_19",
+      "45_5",
+      "65_21",
+      "80_4"
+    ]
+  },
+  {
+    "parcelle": "canterane",
+    "cepage": "M",
+    "values": [
+      "5_80",
+      "10_11",
+      "30_32",
+      "45_16",
+      "62_73",
+      "79_33",
+      "96_63",
+      "113_10",
+      "131_47",
+      "148_11",
+      "162_37",
+      "183_13"
+    ]
+  },
+  {
+    "parcelle": "chais_1",
+    "cepage": "Cs",
+    "values": [
+      "13_15",
+      "26_32",
+      "39_7",
+      "52_32",
+      "65_10"
+    ]
+  },
+  {
+    "parcelle": "chais_2",
+    "cepage": "Cs",
+    "values": [
+      "7_19",
+      "22_5",
+      "37_22",
+      "52_8",
+      "67_25",
+      "80_10"
+    ]
+  },
+  {
+    "parcelle": "chataigniers",
+    "cepage": "Cs",
+    "values": [
+      "12_44",
+      "16_1",
+      "30_22",
+      "47_4",
+      "59_38"
+    ]
+  },
+  {
+    "parcelle": "chene_vert_1",
+    "cepage": "Cs",
+    "values": [
+      "17_2",
+      "51_2",
+      "81_7",
+      "116_1"
+    ]
+  },
+  {
+    "parcelle": "chene_vert_2",
+    "cepage": "Cs",
+    "values": [
+      "13_3",
+      "30_64",
+      "37_29",
+      "57_9",
+      "74_69",
+      "90_40",
+      "121_69",
+      "134_2"
+    ]
+  },
+  {
+    "parcelle": "chene_vert_3",
+    "cepage": "Cs",
+    "values": [
+      "10_64",
+      "20_5",
+      "42_37",
+      "73_64",
+      "94_4",
+      "126_43",
+      "143_66",
+      "156_6",
+      "179_36",
+      "206_11",
+      "217_64"
+    ]
+  },
+  {
+    "parcelle": "dardenans_1",
+    "cepage": "M",
+    "values": [
+      "6_40",
+      "15_9",
+      "29_75"
+    ]
+  },
+  {
+    "parcelle": "dardenans_2",
+    "cepage": "CS",
+    "values": [
+      "11_7",
+      "19_85",
+      "31_45",
+      "41_12",
+      "51_103",
+      "61_60",
+      "71_10"
+    ]
+  },
+  {
+    "parcelle": "dardenans_3",
+    "cepage": "CS",
+    "values": [
+      "11_6",
+      "30_29",
+      "50_10",
+      "71_34"
+    ]
+  },
+  {
+    "parcelle": "fiouzaille",
+    "cepage": "CS",
+    "values": [
+      "4_52",
+      "10_7"
+    ]
+  },
+  {
+    "parcelle": "font_de_jeanne_M",
+    "cepage": "M",
+    "values": [
+      "6_8",
+      "10_44",
+      "26_21",
+      "41_34",
+      "46_7"
+    ]
+  },
+  {
+    "parcelle": "font_de_jeanne_PV",
+    "cepage": "PV",
+    "values": [
+      "6_6",
+      "47_7",
+      "88_8",
+      "120_10",
+      "162_5"
+    ]
+  },
+  {
+    "parcelle": "forts_de_latour_CS",
+    "cepage": "Cs",
+    "values": [
+      "12_7",
+      "18_47",
+      "52_6",
+      "62_42",
+      "78_9",
+      "100_49",
+      "124_8",
+      "155_16"
+    ]
+  },
+  {
+    "parcelle": "forts_de_latour_M",
+    "cepage": "M",
+    "values": [
+      "8_8",
+      "9_57",
+      "32_32",
+      "54_8",
+      "57_56"
+    ]
+  },
+  {
+    "parcelle": "gaillottes_CS",
+    "cepage": "CS",
+    "values": [
+      "10_11",
+      "27_32",
+      "52_45",
+      "64_19",
+      "92_35",
+      "115_16",
+      "139_70",
+      "151_21"
+    ]
+  },
+  {
+    "parcelle": "gaillottes_M",
+    "cepage": "M",
+    "values": [
+      "4_12",
+      "8_50",
+      "13_20",
+      "18_35"
+    ]
+  },
+  {
+    "parcelle": "garennes_1",
+    "cepage": "Cs",
+    "values": [
+      "10_5",
+      "25_30",
+      "47_15",
+      "60_3",
+      "81_21"
+    ]
+  },
+  {
+    "parcelle": "garennes_2",
+    "cepage": "Cs",
+    "values": [
+      "12_29",
+      "26_5",
+      "47_14",
+      "65_27",
+      "83_3"
+    ]
+  },
+  {
+    "parcelle": "grand_enclos",
+    "cepage": "Cs",
+    "values": [
+      "13_25",
+      "29_88",
+      "45_44",
+      "57_86",
+      "74_25",
+      "89_45",
+      "104_67",
+      "118_20",
+      "138_39",
+      "152_11",
+      "174_24",
+      "195_24"
+    ]
+  },
+  {
+    "parcelle": "grand_faure_1",
+    "cepage": "Cs",
+    "values": [
+      "17_5",
+      "45_25",
+      "78_5",
+      "113_38",
+      "144_13",
+      "178_42",
+      "217_9",
+      "250_45",
+      "269_5",
+      "283_42"
+    ]
+  },
+  {
+    "parcelle": "grand_sablonnet_1",
+    "cepage": "Cs",
+    "values": [
+      "10_57",
+      "33_6",
+      "53_51",
+      "75_6",
+      "99_42",
+      "121_9",
+      "143_35",
+      "167_9",
+      "189_35",
+      "211_7",
+      "236_36"
+    ]
+  },
+  {
+    "parcelle": "grand_sablonnet_2_collection",
+    "cepage": "Cs",
+    "values": [
+      "16_8",
+      "32_28",
+      "48_45",
+      "64_6",
+      "80_23",
+      "97_41",
+      "113_10",
+      "129_25",
+      "145_43",
+      "162_9",
+      "179_32",
+      "193_40"
+    ]
+  },
+  {
+    "parcelle": "grand_sablonnet_2_sud",
+    "cepage": "Cs",
+    "values": [
+      "8_8",
+      "24_44",
+      "40_8"
+    ]
+  },
+  {
+    "parcelle": "grande_lande_1",
+    "cepage": "M",
+    "values": [
+      "9_17",
+      "9_46",
+      "9_79",
+      "13_60",
+      "14_30"
+    ]
+  },
+  {
+    "parcelle": "grande_lande_2",
+    "cepage": "CS",
+    "values": [
+      "4_65",
+      "8_30",
+      "11_42",
+      "14_11"
+    ]
+  },
+  {
+    "parcelle": "gravette",
+    "cepage": "Cs",
+    "values": [
+      "17_4",
+      "41_36",
+      "56_4",
+      "82_38",
+      "97_5",
+      "118_37",
+      "139_4",
+      "163_39",
+      "181_5",
+      "197_39"
+    ]
+  },
+  {
+    "parcelle": "jardinots_1",
+    "cepage": "Cs",
+    "values": [
+      "15_39",
+      "35_5",
+      "60_15",
+      "86_40",
+      "111_4"
+    ]
+  },
+  {
+    "parcelle": "jardinots_2",
+    "cepage": "Cs",
+    "values": [
+      "14_5",
+      "33_37",
+      "59_16",
+      "83_5",
+      "109_35"
+    ]
+  },
+  {
+    "parcelle": "juillac_1",
+    "cepage": "Cs",
+    "values": [
+      "21_7",
+      "44_29",
+      "83_6",
+      "99_30",
+      "132_25",
+      "149_6",
+      "186_43",
+      "197_5"
+    ]
+  },
+  {
+    "parcelle": "juillac_2_CS",
+    "cepage": "Cs",
+    "values": [
+      "17_4",
+      "44_8",
+      "73_5",
+      "102_22",
+      "112_5"
+    ]
+  },
+  {
+    "parcelle": "juillac_2_M",
+    "cepage": "M",
+    "values": [
+      "15_9",
+      "23_29",
+      "46_12",
+      "75_40",
+      "80_8"
+    ]
+  },
+  {
+    "parcelle": "la_glodoune",
+    "cepage": "CS",
+    "values": [
+      "10_8",
+      "20_26",
+      "30_55",
+      "40_20"
+    ]
+  },
+  {
+    "parcelle": "la_lagune",
+    "cepage": "M / CS",
+    "values": [
+      "3_19",
+      "7_55",
+      "",
+      "4_37",
+      "8_9",
+      "19_68"
+    ]
+  },
+  {
+    "parcelle": "les_gressons_3",
+    "cepage": "CS",
+    "values": [
+      "6_2",
+      "9_35",
+      "18_25",
+      "30_13"
+    ]
+  },
+  {
+    "parcelle": "les_gressons_4",
+    "cepage": "CS",
+    "values": [
+      "5_20",
+      "16_44",
+      "34_21",
+      "52_46",
+      "66_8"
+    ]
+  },
+  {
+    "parcelle": "les_parcs_CS",
+    "cepage": "CS",
+    "values": [
+      "4_19",
+      "9_28",
+      "15_5",
+      "17_23"
+    ]
+  },
+  {
+    "parcelle": "les_parcs_M",
+    "cepage": "M",
+    "values": [
+      "4_59",
+      "8_15"
+    ]
+  },
+  {
+    "parcelle": "lespret",
+    "cepage": "CS",
+    "values": [
+      "2_58",
+      "4_12"
+    ]
+  },
+  {
+    "parcelle": "moussas",
+    "cepage": "CS",
+    "values": [
+      "15_10",
+      "28_114",
+      "40_73",
+      "52_9",
+      "64_105",
+      "76_51",
+      "88_7",
+      "100_124",
+      "112_59"
+    ]
+  },
+  {
+    "parcelle": "parc_de_pelon",
+    "cepage": "M",
+    "values": [
+      "10_48",
+      "20_8",
+      "30_28",
+      "40_49",
+      "50_7"
+    ]
+  },
+  {
+    "parcelle": "petit_batailley_1_CS",
+    "cepage": "Cs",
+    "values": [
+      "5_93",
+      "18_13",
+      "33_57",
+      "48_80",
+      "60_14"
+    ]
+  },
+  {
+    "parcelle": "petit_batailley_1_M",
+    "cepage": "M",
+    "values": [
+      "4_78",
+      "6_131",
+      "9_17",
+      "24_39",
+      "30_97"
+    ]
+  },
+  {
+    "parcelle": "petit_batailley_2",
+    "cepage": "Cs",
+    "values": [
+      "10_45",
+      "21_9",
+      "40_33",
+      "61_60",
+      "79_9",
+      "100_35",
+      "121_55",
+      "143_9",
+      "162_31",
+      "182_58",
+      "202_8",
+      "220_33"
+    ]
+  },
+  {
+    "parcelle": "petit_batailley_2_bis",
+    "cepage": "Cs",
+    "values": [
+      "7_12",
+      "14_56",
+      "36_25",
+      "53_8"
+    ]
+  },
+  {
+    "parcelle": "petit_batailley_3",
+    "cepage": "Cs",
+    "values": [
+      "10_67",
+      "28_5",
+      "42_53",
+      "58_106",
+      "80_9",
+      "80_74"
+    ]
+  },
+  {
+    "parcelle": "petit_batailley_4",
+    "cepage": "Cs",
+    "values": [
+      "4_11",
+      "21_51",
+      "40_36",
+      "60_9",
+      "81_49",
+      "100_36",
+      "120_9",
+      "141_54",
+      "160_34",
+      "182_7",
+      "203_54",
+      "217_33"
+    ]
+  },
+  {
+    "parcelle": "petit_batailley_5",
+    "cepage": "Cs",
+    "values": [
+      "12_124",
+      "23_13",
+      "41_71",
+      "54_112",
+      "67_7",
+      "81_47",
+      "94_11",
+      "108_93",
+      "122_44"
+    ]
+  },
+  {
+    "parcelle": "petit_batailley_6",
+    "cepage": "Cs",
+    "values": [
+      "10_13",
+      "23_59",
+      "35_36",
+      "48_6",
+      "60_14"
+    ]
+  },
+  {
+    "parcelle": "petit_batailley_7",
+    "cepage": "M",
+    "values": [
+      "13_9",
+      "33_29",
+      "55_11",
+      "70_37",
+      "93_8",
+      "113_33"
+    ]
+  },
+  {
+    "parcelle": "petit_faure_1_CS_nord",
+    "cepage": "Cs",
+    "values": [
+      "9_48",
+      "12_9",
+      "26_21",
+      "36_9",
+      "38_43"
+    ]
+  },
+  {
+    "parcelle": "petit_faure_1_CS_sud",
+    "cepage": "Cs",
+    "values": [
+      "28_6",
+      "44_27",
+      "62_7",
+      "77_31",
+      "94_10",
+      "115_35",
+      "134_6"
+    ]
+  },
+  {
+    "parcelle": "petit_faure_1_M",
+    "cepage": "M",
+    "values": [
+      "15_10",
+      "29_42",
+      "47_26",
+      "67_31",
+      "76_12"
+    ]
+  },
+  {
+    "parcelle": "petit_faure_2_CS_nord",
+    "cepage": "Cs",
+    "values": [
+      "7_8",
+      "17_43",
+      "29_25",
+      "36_10",
+      "46_46"
+    ]
+  },
+  {
+    "parcelle": "petit_faure_2_CS_sud",
+    "cepage": "Cs",
+    "values": [
+      "8_29",
+      "27_8",
+      "46_43",
+      "68_5",
+      "84_44",
+      "103_10",
+      "121_44"
+    ]
+  },
+  {
+    "parcelle": "petit_faure_2_M",
+    "cepage": "M",
+    "values": [
+      "11_10",
+      "29_49",
+      "49_18",
+      "75_50",
+      "94_26"
+    ]
+  },
+  {
+    "parcelle": "petit_faure_3",
+    "cepage": "Cs",
+    "values": [
+      "9_13",
+      "28_53",
+      "41_22",
+      "57_5",
+      "66_40",
+      "96_25",
+      "107_43",
+      "128_2"
+    ]
+  },
+  {
+    "parcelle": "petit_sablonnet",
+    "cepage": "Cs",
+    "values": [
+      "8_16",
+      "30_63",
+      "52_10",
+      "74_48",
+      "96_6"
+    ]
+  },
+  {
+    "parcelle": "pibran_1",
+    "cepage": "M",
+    "values": [
+      "11_7",
+      "18_34",
+      "25_66",
+      "32_7"
+    ]
+  },
+  {
+    "parcelle": "pibran_2",
+    "cepage": "Cs",
+    "values": [
+      "3_8",
+      "7_52",
+      "12_31",
+      "17_74"
+    ]
+  },
+  {
+    "parcelle": "piece_de_la_tour",
+    "cepage": "Cs",
+    "values": [
+      "16_4",
+      "16_94",
+      "30_42",
+      "61_95",
+      "62_6",
+      "97_46",
+      "130_85",
+      "136_2",
+      "160_41",
+      "185_75",
+      "186_2",
+      "207_34",
+      "236_80",
+      "237_3"
+    ]
+  },
+  {
+    "parcelle": "piece_du_chateau",
+    "cepage": "Cs",
+    "values": [
+      "8_73",
+      "27_3",
+      "46_38",
+      "64_6",
+      "77_50",
+      "101_6",
+      "121_42"
+    ]
+  },
+  {
+    "parcelle": "pinada_1",
+    "cepage": "M",
+    "values": [
+      "4_20",
+      "16_57",
+      "27_32"
+    ]
+  },
+  {
+    "parcelle": "plantier_blanc_CS",
+    "cepage": "Cs",
+    "values": [
+      "17_2",
+      "18_61",
+      "28_37",
+      "40_6",
+      "42_72"
+    ]
+  },
+  {
+    "parcelle": "plantier_blanc_PV",
+    "cepage": "Pv",
+    "values": [
+      "6_6",
+      "9_44"
+    ]
+  },
+  {
+    "parcelle": "plantier_comtesse",
+    "cepage": "M",
+    "values": [
+      "8_54",
+      "10_3",
+      "22_32",
+      "39_29"
+    ]
+  },
+  {
+    "parcelle": "pommiers",
+    "cepage": "Cs",
+    "values": [
+      "5_7",
+      "6_57",
+      "6_110",
+      "16_89",
+      "20_36",
+      "29_55",
+      "42_12"
+    ]
+  },
+  {
+    "parcelle": "prairie_CS",
+    "cepage": "Cs",
+    "values": [
+      "10_6",
+      "20_25",
+      "30_7",
+      "42_22",
+      "51_7",
+      "63_23"
+    ]
+  },
+  {
+    "parcelle": "prairie_M",
+    "cepage": "M",
+    "values": [
+      "10_7",
+      "25_22",
+      "38_23",
+      "49_7",
+      "59_20"
+    ]
+  },
+  {
+    "parcelle": "roca_1",
+    "cepage": "Cs",
+    "values": [
+      "8_13",
+      "33_41",
+      "58_12",
+      "83_38",
+      "112_12"
+    ]
+  },
+  {
+    "parcelle": "roca_2",
+    "cepage": "Cs",
+    "values": [
+      "10_13",
+      "26_38",
+      "45_11",
+      "61_37",
+      "78_12",
+      "97_38",
+      "113_10"
+    ]
+  },
+  {
+    "parcelle": "roca_3",
+    "cepage": "Cs",
+    "values": [
+      "12_10",
+      "22_24",
+      "38_32",
+      "61_11",
+      "74_26",
+      "89_34",
+      "101_12"
+    ]
+  },
+  {
+    "parcelle": "roca_4",
+    "cepage": "Cs",
+    "values": [
+      "11_59",
+      "20_75",
+      "28_4",
+      "39_20",
+      "52_72",
+      "62_10"
+    ]
+  },
+  {
+    "parcelle": "rodites_1",
+    "cepage": "Cs",
+    "values": [
+      "3_36",
+      "9_10",
+      "15_73",
+      "22_51",
+      "28_23"
+    ]
+  },
+  {
+    "parcelle": "rodites_2_CS",
+    "cepage": "CS",
+    "values": [
+      "2_27",
+      "5_66",
+      "8_5",
+      "11_44"
+    ]
+  },
+  {
+    "parcelle": "rodites_2_M",
+    "cepage": "M",
+    "values": [
+      "6_14",
+      "16_63",
+      "30_35",
+      "36_72",
+      "46_8"
+    ]
+  },
+  {
+    "parcelle": "saint_anne_1",
+    "cepage": "Cs",
+    "values": [
+      "30_14",
+      "48_45",
+      "65_12",
+      "78_77",
+      "97_48",
+      "115_15",
+      "133_70",
+      "148_46"
+    ]
+  },
+  {
+    "parcelle": "saint_anne_2",
+    "cepage": "M",
+    "values": [
+      "9_10",
+      "12_69",
+      "26_42",
+      "40_76",
+      "43_12"
+    ]
+  },
+  {
+    "parcelle": "saint_anne_3",
+    "cepage": "Cs",
+    "values": [
+      "6_15",
+      "9_78",
+      "25_47",
+      "42_16",
+      "48_77",
+      "55_18",
+      "58_76",
+      "67_52",
+      "76_15",
+      "79_74"
+    ]
+  },
+  {
+    "parcelle": "saint_anne_4",
+    "cepage": "Cs",
+    "values": [
+      "6_15",
+      "20_10",
+      "38_32",
+      "54_7",
+      "72_35",
+      "94_8",
+      "114_34"
+    ]
+  },
+  {
+    "parcelle": "saint_anne_5",
+    "cepage": "Cs",
+    "values": [
+      "9_16",
+      "22_8",
+      "40_45",
+      "58_17",
+      "74_69",
+      "90_7",
+      "103_48",
+      "118_13",
+      "125_104"
+    ]
+  },
+  {
+    "parcelle": "sarmentier",
+    "cepage": "Cs",
+    "values": [
+      "13_4",
+      "26_87",
+      "42_45",
+      "62_2",
+      "70_88",
+      "88_43",
+      "110_4",
+      "130_73",
+      "143_39",
+      "152_4",
+      "176_51",
+      "196_25",
+      "213_3",
+      "227_38"
+    ]
+  },
+  {
+    "parcelle": "socs_1_CS",
+    "cepage": "Cs",
+    "values": [
+      "5_10",
+      "10_65",
+      "21_40",
+      "35_13",
+      "50_55"
+    ]
+  },
+  {
+    "parcelle": "socs_1_M",
+    "cepage": "M",
+    "values": [
+      "3_5",
+      "4_61",
+      "15_8"
+    ]
+  },
+  {
+    "parcelle": "socs_2",
+    "cepage": "Cs",
+    "values": [
+      "11_11",
+      "19_62",
+      "37_34",
+      "56_11",
+      "63_59",
+      "76_39",
+      "92_14",
+      "106_48"
+    ]
+  },
+  {
+    "parcelle": "socs_3",
+    "cepage": "Cs",
+    "values": [
+      "5_16",
+      "7_56",
+      "20_31",
+      "31_11"
+    ]
+  },
+  {
+    "parcelle": "terre_noire",
+    "cepage": "CS",
+    "values": [
+      "1_52",
+      "2_20"
+    ]
+  },
+  {
+    "parcelle": "tourette_1",
+    "cepage": "Cs",
+    "values": [
+      "3_20",
+      "7_76"
+    ]
+  },
+  {
+    "parcelle": "tourette_2",
+    "cepage": "Cs",
+    "values": [
+      "7_54",
+      "18_8",
+      "27_80"
+    ],
+    "commentaire": "cabots comptés sur la première placette"
+  },
+  {
+    "parcelle": "tourette_3",
+    "cepage": "Cs",
+    "values": [
+      "11_13",
+      "16_48",
+      "35_27",
+      "53_9",
+      "58_54"
+    ]
+  },
+  {
+    "parcelle": "tourette_4",
+    "cepage": "Cs",
+    "values": [
+      "8_11",
+      "10_79",
+      "26_35",
+      "47_13",
+      "52_60"
+    ]
+  },
+  {
+    "parcelle": "trillot_1",
+    "cepage": "PV",
+    "values": [
+      "9_75",
+      "11_11",
+      "31_13",
+      "49_30",
+      "73_6"
+    ]
+  },
+  {
+    "parcelle": "trillot_2",
+    "cepage": "M",
+    "values": [
+      "6_88",
+      "14_1",
+      "23_43",
+      "40_8",
+      "50_84",
+      "62_31"
+    ]
+  },
+  {
+    "parcelle": "trillot_3",
+    "cepage": "Cs",
+    "values": [
+      "19_48",
+      "27_1",
+      "47_28",
+      "67_9",
+      "76_36"
+    ]
+  },
+  {
+    "parcelle": "trillot_4",
+    "cepage": "Cs",
+    "values": [
+      "7_48",
+      "15_8",
+      "39_10"
+    ]
+  }
+];
+const LS_KEY = 'comptage_grappes_placettes_v1';
+const LS_PREFS = 'comptage_grappes_prefs_v1';
+let state = { records: {}, prefs: {} };
+const $ = (id) => document.getElementById(id);
+
+function normalizeCepage(c) { return (c || '').trim().replace(/^cs$/i,'CS').replace(/^pv$/i,'PV'); }
+function cleanValues(row) {
+  return row.values.map((v, i) => ({ p: 'P' + (i+1), repere: String(v || '').trim() }))
+    .filter(x => x.repere && /^\d+_\d+/.test(x.repere));
+}
+function splitRepere(repere) { const [rang,pied] = repere.split('_'); return { rang, pied }; }
+function keyFor(parcelle, p) { return `${parcelle}__${p}`; }
+function currentRow() { return PARCELLES.find(r => r.parcelle === $('parcelSelect').value) || PARCELLES[0]; }
+function currentPlot() { const row = currentRow(); return cleanValues(row).find(x => x.p === $('plotSelect').value) || cleanValues(row)[0]; }
+function defaultFoot(i) { return { pied_placette:i, grappes:0, jeune:false, melange:false, manquant:false }; }
+function defaultFeet(count=10) { return Array.from({length:count}, (_,i)=>defaultFoot(i+1)); }
+function normalizeFeet(feet, fallback=10) {
+  const arr = Array.isArray(feet) && feet.length ? feet : defaultFeet(fallback);
+  return arr.map((f, idx) => ({...defaultFoot(idx+1), ...(f || {}), pied_placette: idx+1}));
+}
+function currentKey() { const row = currentRow(); const plot = currentPlot(); return keyFor(row.parcelle, plot.p); }
+function todayISO() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
+function formatNum(n) { return Number(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: Number(n)%1 ? 1 : 0 }); }
+function csvNum(n) { return String(Number(n || 0)).replace('.', ','); }
+function toast(msg) { const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+
+function loadState() {
+  try { state = JSON.parse(localStorage.getItem(LS_KEY)) || state; } catch(e) {}
+  try { state.prefs = JSON.parse(localStorage.getItem(LS_PREFS)) || state.prefs || {}; } catch(e) {}
+  $('operator').value = state.prefs.operator || '';
+  $('date').value = state.prefs.date || todayISO();
+  $('sliderMax').value = state.prefs.sliderMax || 20;
+}
+function saveState() {
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  localStorage.setItem(LS_PREFS, JSON.stringify({ operator:$('operator').value, date:$('date').value, sliderMax:$('sliderMax').value }));
+  updateProgress();
+}
+
+function populateParcels() {
+  $('parcelSelect').innerHTML = PARCELLES.map(r => `<option value="${escapeHtml(r.parcelle)}">${escapeHtml(r.parcelle)} · ${normalizeCepage(r.cepage)}</option>`).join('');
+  const last = state.prefs.parcelle;
+  if(last && PARCELLES.some(r => r.parcelle === last)) $('parcelSelect').value = last;
+}
+function populatePlots() {
+  const row = currentRow();
+  const plots = cleanValues(row);
+  $('plotSelect').innerHTML = plots.map(x => `<option value="${x.p}">${x.p} · rang/pied ${x.repere}</option>`).join('');
+  if(state.prefs.plot && plots.some(x => x.p === state.prefs.plot)) $('plotSelect').value = state.prefs.plot;
+  render();
+}
+function render() {
+  const row = currentRow();
+  const plot = currentPlot();
+  if(!plot) return;
+  $('cepagePill').textContent = 'Cépage : ' + normalizeCepage(row.cepage);
+  $('plotPill').textContent = `${plot.p} · rang/pied repère : ${plot.repere}`;
+  const rec = state.records[currentKey()] || { comment: row.commentaire || '', feet: defaultFeet(10) };
+  $('comment').value = rec.comment ?? row.commentaire ?? '';
+  renderFeet(rec.feet || []);
+  updateSummary();
+  updateProgress();
+  state.prefs.parcelle = row.parcelle; state.prefs.plot = plot.p;
+  saveState();
+}
+function renderFeet(feet) {
+  const max = Number($('sliderMax').value || 20);
+  const full = normalizeFeet(feet, 10);
+  if($('footCountInfo')) $('footCountInfo').textContent = `${full.length} pied${full.length>1?'s':''} dans la placette`;
+  $('feetGrid').innerHTML = full.map(f => `
+    <article class="foot" data-foot="${f.pied_placette}">
+      <div class="foot-head"><div class="foot-title">Pied ${f.pied_placette}</div><span class="saved-dot ${isFootFilled(f)?'saved':''}"></span></div>
+      <label>Nombre de grappes</label>
+      <div class="grape-row">
+        <input class="grapeRange" type="range" min="0" max="${max}" step="0.5" value="${Number(f.grappes || 0)}" ${f.manquant?'disabled':''}>
+        <input class="grapeNumber" type="number" min="0" step="0.5" value="${Number(f.grappes || 0)}" ${f.manquant?'disabled':''}>
+      </div>
+      <div class="step-row" aria-label="Ajustement rapide du nombre de grappes">
+        <button type="button" class="step-btn minus" data-step="-1">−1</button>
+        <button type="button" class="step-btn minus" data-step="-0.5">−0,5</button>
+        <button type="button" class="step-btn plus" data-step="0.5">+0,5</button>
+        <button type="button" class="step-btn plus" data-step="1">+1</button>
+      </div>
+      <div class="checks">
+        <label class="check ${f.jeune?'active':''}"><input class="flagJeune" type="checkbox" ${f.jeune?'checked':''}>Jeunes</label>
+        <label class="check ${f.melange?'active':''}"><input class="flagMelange" type="checkbox" ${f.melange?'checked':''}>Mélange</label>
+        <label class="check missing ${f.manquant?'active':''}"><input class="flagManquant" type="checkbox" ${f.manquant?'checked':''}>Manquants</label>
+      </div>
+    </article>`).join('');
+  attachFootEvents();
+}
+function attachFootEvents() {
+  document.querySelectorAll('.foot').forEach(card => {
+    const range = card.querySelector('.grapeRange');
+    const number = card.querySelector('.grapeNumber');
+    const missing = card.querySelector('.flagManquant');
+    const refreshToggleVisuals = () => {
+      card.querySelectorAll('.check').forEach(label => {
+        const input = label.querySelector('input');
+        label.classList.toggle('active', !!input.checked);
+      });
+    };
+    const syncValue = (value) => {
+      const max = Number(range.max || 20);
+      let val = Math.max(0, Math.min(max, Math.round(Number(value || 0)*2)/2));
+      range.value = val;
+      number.value = val;
+      saveCurrent(false); updateSummary();
+    };
+    const sync = (src) => syncValue(src.value);
+    range.addEventListener('input', () => sync(range));
+    number.addEventListener('input', () => sync(number));
+    card.querySelectorAll('.step-btn').forEach(btn => btn.addEventListener('click', () => {
+      if(missing.checked) return;
+      syncValue(Number(number.value || 0) + Number(btn.dataset.step || 0));
+    }));
+    card.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', () => {
+      if(missing.checked) { range.value = 0; number.value = 0; range.disabled = true; number.disabled = true; }
+      else { range.disabled = false; number.disabled = false; }
+      refreshToggleVisuals();
+      saveCurrent(false); updateSummary();
+    }));
+    refreshToggleVisuals();
+  });
+}
+function isFootFilled(f) { return Number(f.grappes || 0) > 0 || f.jeune || f.melange || f.manquant; }
+function readFeetFromDom() {
+  return Array.from(document.querySelectorAll('.foot')).map(card => {
+    const i = Number(card.dataset.foot);
+    const manquant = card.querySelector('.flagManquant').checked;
+    return {
+      pied_placette: i,
+      grappes: manquant ? 0 : Math.round(Number(card.querySelector('.grapeNumber').value || 0)*2)/2,
+      jeune: card.querySelector('.flagJeune').checked,
+      melange: card.querySelector('.flagMelange').checked,
+      manquant
+    };
+  });
+}
+function addFootToCurrent() {
+  saveCurrent(false);
+  const rec = state.records[currentKey()];
+  const feet = normalizeFeet(rec.feet || [], 10);
+  feet.push(defaultFoot(feet.length + 1));
+  rec.feet = normalizeFeet(feet, feet.length);
+  state.records[currentKey()] = rec;
+  saveState();
+  renderFeet(rec.feet);
+  updateSummary();
+  toast('Pied ajouté');
+}
+function removeFootFromCurrent() {
+  saveCurrent(false);
+  const rec = state.records[currentKey()];
+  const feet = normalizeFeet(rec.feet || [], 10);
+  if(feet.length <= 1) { toast('Il faut garder au moins 1 pied'); return; }
+  feet.pop();
+  rec.feet = normalizeFeet(feet, feet.length);
+  state.records[currentKey()] = rec;
+  saveState();
+  renderFeet(rec.feet);
+  updateSummary();
+  toast('Dernier pied supprimé');
+}
+function saveCurrent(show=true) {
+  const row = currentRow(); const plot = currentPlot(); if(!plot) return;
+  const rec = {
+    date_saisie: $('date').value || todayISO(),
+    operateur: $('operator').value.trim(),
+    parcelle: row.parcelle,
+    cepage: normalizeCepage(row.cepage),
+    placette: plot.p,
+    repere: plot.repere,
+    rang_repere: splitRepere(plot.repere).rang,
+    pied_repere: splitRepere(plot.repere).pied,
+    commentaire: $('comment').value.trim(),
+    feet: readFeetFromDom(),
+    updated_at: new Date().toISOString()
+  };
+  state.records[currentKey()] = rec;
+  saveState();
+  if(show) toast('Placette enregistrée');
+}
+function updateSummary() {
+  const feet = readFeetFromDom();
+  const total = feet.reduce((s,f)=>s+Number(f.grappes||0),0);
+  const valid = feet.filter(f=>!f.manquant).length;
+  const mean = valid ? total / valid : 0;
+  const jeunes = feet.filter(f=>f.jeune).length;
+  const melange = feet.filter(f=>f.melange).length;
+  const manq = feet.filter(f=>f.manquant).length;
+  $('summary').innerHTML = [
+    ['Total grappes', formatNum(total)], ['Moyenne / pied présent', formatNum(mean)], ['Jeunes', jeunes], ['Mélange', melange], ['Manquants', manq]
+  ].map(([a,b]) => `<div class="stat"><small>${a}</small><strong>${b}</strong></div>`).join('');
+}
+function updateProgress() {
+  const total = PARCELLES.reduce((s,r)=>s+cleanValues(r).length,0);
+  const saved = Object.keys(state.records || {}).length;
+  $('savedPill').textContent = `${saved} / ${total} placettes saisies`;
+  $('progress').style.width = Math.min(100, total ? saved/total*100 : 0) + '%';
+}
+function nextPlot(step) {
+  const row = currentRow(); const plots = cleanValues(row); let idx = plots.findIndex(p=>p.p===$('plotSelect').value);
+  idx += step;
+  if(idx >= 0 && idx < plots.length) { $('plotSelect').value = plots[idx].p; render(); return; }
+  const parcelIdx = PARCELLES.findIndex(r=>r.parcelle===row.parcelle) + step;
+  if(parcelIdx >= 0 && parcelIdx < PARCELLES.length) { $('parcelSelect').value = PARCELLES[parcelIdx].parcelle; state.prefs.plot = null; populatePlots(); }
+}
+function escapeCsv(v) {
+  const s = String(v ?? '');
+  return /[;"\n\r]/.test(s) ? '"' + s.replaceAll('"','""') + '"' : s;
+}
+function download(filename, text, type='text/plain;charset=utf-8') {
+  const blob = new Blob(['\ufeff' + text], {type});
+  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+}
+function allLongRows() {
+  const lines = [['date_saisie','operateur','parcelle','cepage','placette','rang_repere','pied_repere','pied_placette','nombre_grappes','jeune','melange','manquant','commentaire','updated_at']];
+  Object.values(state.records || {}).forEach(rec => {
+    normalizeFeet(rec.feet || [], 10).forEach(f => lines.push([
+      rec.date_saisie, rec.operateur, rec.parcelle, rec.cepage, rec.placette, rec.rang_repere, rec.pied_repere,
+      f.pied_placette, csvNum(f.grappes), f.jeune?'1':'0', f.melange?'1':'0', f.manquant?'1':'0', rec.commentaire, rec.updated_at
+    ]));
+  });
+  return lines;
+}
+function orderedRecords() {
+  const ordered = [];
+  const seen = new Set();
+  PARCELLES.forEach(row => {
+    cleanValues(row).forEach(plot => {
+      const k = keyFor(row.parcelle, plot.p);
+      if(state.records && state.records[k]) { ordered.push(state.records[k]); seen.add(k); }
+    });
+  });
+  Object.entries(state.records || {}).forEach(([k, rec]) => { if(!seen.has(k)) ordered.push(rec); });
+  return ordered;
+}
+function footStatusClass(f) {
+  if(f.manquant) return 'missing';
+  if(f.melange) return 'mixed';
+  if(f.jeune) return 'young';
+  return '';
+}
+function footStatusText(f) {
+  if(f.manquant) return 'Manquant';
+  if(f.melange) return 'Mélange';
+  if(f.jeune) return 'Jeune';
+  return '';
+}
+function excelDisplayNum(n) {
+  const v = Math.round(Number(n || 0) * 2) / 2;
+  return String(v).replace('.', ',');
+}
+function xmlEscape(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[m]));
+}
+function excelSheetName(name, usedNames) {
+  const cleaned = String(name || 'Parcelle')
+    .replace(/[\\\/\?\*\[\]:]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || 'Parcelle';
+  let base = cleaned.slice(0, 31);
+  let candidate = base;
+  let idx = 2;
+  while(usedNames.has(candidate.toLowerCase())) {
+    const suffix = '_' + idx;
+    candidate = base.slice(0, 31 - suffix.length) + suffix;
+    idx++;
+  }
+  usedNames.add(candidate.toLowerCase());
+  return candidate;
+}
+function excelDataCell(value, styleId='Cell', type='String') {
+  const style = styleId ? ` ss:StyleID="${styleId}"` : '';
+  if(value === null || value === undefined || value === '') return `<Cell${style}/>`;
+  if(type === 'Number') return `<Cell${style}><Data ss:Type="Number">${Number(value || 0)}</Data></Cell>`;
+  return `<Cell${style}><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
+}
+function exportExcelTable() {
+  saveCurrent(false);
+  const recordMap = new Map(Object.entries(state.records || {}));
+  const parcelsWithData = PARCELLES.map(row => {
+    const plots = cleanValues(row);
+    const recs = plots.map(plot => recordMap.get(keyFor(row.parcelle, plot.p)) || null);
+    return { row, plots, recs, hasData: recs.some(Boolean) };
+  }).filter(x => x.hasData);
+
+  if(!parcelsWithData.length) { alert('Aucune saisie à exporter.'); return; }
+
+  const styles = `
+  <Styles>
+    <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Center"/><Font ss:FontName="Arial" ss:Size="10"/></Style>
+    <Style ss:ID="Title"><Font ss:FontName="Arial" ss:Size="14" ss:Bold="1" ss:Color="#0B1F3A"/></Style>
+    <Style ss:ID="Info"><Font ss:FontName="Arial" ss:Size="9" ss:Color="#333333"/></Style>
+    <Style ss:ID="Header"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Arial" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0B1F3A" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+    <Style ss:ID="RowHead"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Arial" ss:Size="10" ss:Bold="1" ss:Color="#0B1F3A"/><Interior ss:Color="#D9EAF7" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+    <Style ss:ID="Cell"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><NumberFormat ss:Format="0.0"/></Style>
+    <Style ss:ID="Blank"><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+    <Style ss:ID="Missing"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Arial" ss:Size="10" ss:Color="#FFFFFF"/><Interior ss:Color="#595959" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><NumberFormat ss:Format="0.0"/></Style>
+    <Style ss:ID="Mixed"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Interior ss:Color="#B6D7A8" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><NumberFormat ss:Format="0.0"/></Style>
+    <Style ss:ID="Young"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Interior ss:Color="#9FC5E8" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><NumberFormat ss:Format="0.0"/></Style>
+    <Style ss:ID="LegendMissing"><Alignment ss:Horizontal="Center"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#595959" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="LegendMixed"><Alignment ss:Horizontal="Center"/><Font ss:Bold="1"/><Interior ss:Color="#B6D7A8" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="LegendYoung"><Alignment ss:Horizontal="Center"/><Font ss:Bold="1"/><Interior ss:Color="#9FC5E8" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="Note"><Alignment ss:Horizontal="Left" ss:Vertical="Top" ss:WrapText="1"/><Interior ss:Color="#FFF4CC" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  </Styles>`;
+
+  const usedNames = new Set();
+  const worksheets = parcelsWithData.map(({row, plots, recs}) => {
+    const sheetName = excelSheetName(row.parcelle, usedNames);
+    const maxZones = Math.max(10, plots.length);
+    const maxFeet = Math.max(10, ...recs.filter(Boolean).map(rec => normalizeFeet(rec.feet || [], 10).length));
+    const columnDefs = Array.from({length:maxZones + 1}, (_,i) => `<Column ss:AutoFitWidth="0" ss:Width="${i===0 ? 95 : 52}"/>`).join('');
+
+    const rows = [];
+    rows.push(`<Row><Cell ss:MergeAcross="${maxZones}" ss:StyleID="Title"><Data ss:Type="String">${xmlEscape(row.parcelle)} · Cépage ${xmlEscape(normalizeCepage(row.cepage))}</Data></Cell></Row>`);
+    rows.push(`<Row><Cell ss:MergeAcross="${maxZones}" ss:StyleID="Info"><Data ss:Type="String">Les colonnes correspondent aux placettes/zones. Les lignes correspondent aux pieds saisis dans chaque placette.</Data></Cell></Row>`);
+    rows.push(`<Row>${excelDataCell('Manquants','LegendMissing')}${excelDataCell('Mélange','LegendMixed')}${excelDataCell('Jeunes','LegendYoung')}</Row>`);
+    rows.push(`<Row/>`);
+
+    rows.push(`<Row>${excelDataCell('Pieds / Zone','Header')}${Array.from({length:maxZones}, (_,i)=>excelDataCell(String(i+1),'Header')).join('')}</Row>`);
+    rows.push(`<Row>${excelDataCell('Repère rang_pied','RowHead')}${Array.from({length:maxZones}, (_,zoneIdx) => {
+      const plot = plots[zoneIdx];
+      return excelDataCell(plot ? plot.repere : '', 'RowHead');
+    }).join('')}</Row>`);
+
+    for(let footIdx=0; footIdx<maxFeet; footIdx++) {
+      const cells = [excelDataCell(String(footIdx+1), 'RowHead')];
+      for(let zoneIdx=0; zoneIdx<maxZones; zoneIdx++) {
+        const rec = recs[zoneIdx];
+        if(!rec) { cells.push(excelDataCell('', 'Blank')); continue; }
+        const feet = normalizeFeet(rec.feet || [], 10);
+        const f = feet[footIdx];
+        if(!f) { cells.push(excelDataCell('', 'Blank')); continue; }
+        const style = f.manquant ? 'Missing' : (f.melange ? 'Mixed' : (f.jeune ? 'Young' : 'Cell'));
+        const value = Math.round(Number(f.grappes || 0) * 2) / 2;
+        cells.push(excelDataCell(value, style, 'Number'));
+      }
+      rows.push(`<Row>${cells.join('')}</Row>`);
+    }
+
+    const comments = recs.map((rec, idx) => rec && rec.commentaire ? `Zone ${idx+1} : ${rec.commentaire}` : '').filter(Boolean).join(' | ');
+    if(comments) rows.push(`<Row><Cell ss:MergeAcross="${maxZones}" ss:StyleID="Note"><Data ss:Type="String">${xmlEscape(comments)}</Data></Cell></Row>`);
+
+    return `<Worksheet ss:Name="${xmlEscape(sheetName)}"><Table>${columnDefs}${rows.join('')}</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>6</SplitHorizontal><TopRowBottomPane>6</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>`;
+  }).join('');
+
+  const workbook = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">
+<DocumentProperties xmlns="urn:schemas-microsoft-com:office:office"><Title>Comptage grappes par parcelle</Title><Created>${new Date().toISOString()}</Created></DocumentProperties>
+${styles}
+${worksheets}
+</Workbook>`;
+
+  download(`comptage_grappes_onglets_par_parcelle_${todayISO()}.xls`, workbook, 'application/vnd.ms-excel;charset=utf-8');
+}
+function exportCsvLong() {
+  const lines = allLongRows().map(r => r.map(escapeCsv).join(';')).join('\n');
+  download(`comptage_grappes_BDD_long_${todayISO()}.csv`, 'sep=;\n' + lines, 'text/csv;charset=utf-8');
+}
+function exportSummaryCsv() {
+  const lines = [['date_saisie','operateur','parcelle','cepage','placette','rang_repere','pied_repere','nb_pieds_presents','total_grappes','moyenne_grappes_pied_present','nb_jeunes','nb_melange','nb_manquants','commentaire']];
+  Object.values(state.records || {}).forEach(rec => {
+    const feet = normalizeFeet(rec.feet || [], 10); const total = feet.reduce((s,f)=>s+Number(f.grappes||0),0); const presents = feet.filter(f=>!f.manquant).length;
+    lines.push([rec.date_saisie,rec.operateur,rec.parcelle,rec.cepage,rec.placette,rec.rang_repere,rec.pied_repere,presents,csvNum(total),csvNum(presents?total/presents:0),feet.filter(f=>f.jeune).length,feet.filter(f=>f.melange).length,feet.filter(f=>f.manquant).length,rec.commentaire]);
+  });
+  download(`comptage_grappes_synthese_placettes_${todayISO()}.csv`, 'sep=;\n' + lines.map(r=>r.map(escapeCsv).join(';')).join('\n'), 'text/csv;charset=utf-8');
+}
+function exportJson() {
+  download(`sauvegarde_comptage_grappes_${todayISO()}.json`, JSON.stringify(state, null, 2), 'application/json;charset=utf-8');
+}
+function clearCurrent() {
+  if(!confirm('Effacer la saisie de cette placette ?')) return;
+  delete state.records[currentKey()]; saveState(); render(); toast('Placette effacée');
+}
+function clearAll() {
+  if(!confirm('Tout réinitialiser ? Cette action efface toutes les saisies locales.')) return;
+  state.records = {}; saveState(); render(); toast('Saisies effacées');
+}
+function renderDataTable() {
+  $('dataTable').innerHTML = '<thead><tr><th>Parcelle</th><th>Cépage</th><th>Placettes</th><th>Commentaire</th></tr></thead><tbody>' +
+    PARCELLES.map(r => `<tr><td>${escapeHtml(r.parcelle)}</td><td>${escapeHtml(normalizeCepage(r.cepage))}</td><td>${cleanValues(r).map(x=>x.p+'='+x.repere).join(' · ')}</td><td>${escapeHtml(r.commentaire||'')}</td></tr>`).join('') + '</tbody>';
+}
+function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+
+$('parcelSelect').addEventListener('change', () => { state.prefs.plot = null; populatePlots(); });
+$('plotSelect').addEventListener('change', render);
+$('saveBtn').addEventListener('click', () => saveCurrent(true));
+$('addFoot').addEventListener('click', addFootToCurrent);
+$('removeFoot').addEventListener('click', removeFootFromCurrent);
+$('nextPlot').addEventListener('click', () => { saveCurrent(false); nextPlot(1); window.scrollTo({top:0, behavior:'smooth'}); });
+$('prevPlot').addEventListener('click', () => { saveCurrent(false); nextPlot(-1); window.scrollTo({top:0, behavior:'smooth'}); });
+$('nextPlotSticky').addEventListener('click', () => { saveCurrent(false); nextPlot(1); window.scrollTo({top:0, behavior:'smooth'}); });
+$('prevPlotSticky').addEventListener('click', () => { saveCurrent(false); nextPlot(-1); window.scrollTo({top:0, behavior:'smooth'}); });
+$('saveBtnSticky').addEventListener('click', () => saveCurrent(true));
+$('sliderMax').addEventListener('change', () => { saveCurrent(false); render(); });
+$('operator').addEventListener('change', saveState); $('date').addEventListener('change', saveState);
+$('exportExcelTable').addEventListener('click', exportExcelTable); $('exportCsv').addEventListener('click', exportCsvLong); $('exportSummary').addEventListener('click', exportSummaryCsv); $('exportJson').addEventListener('click', exportJson);
+$('clearCurrent').addEventListener('click', clearCurrent); $('clearAll').addEventListener('click', clearAll);
+$('importJson').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if(!file) return;
+  try { const imported = JSON.parse(await file.text()); state = imported; saveState(); loadState(); populateParcels(); populatePlots(); toast('Sauvegarde importée'); }
+  catch(err) { alert('Import impossible : fichier JSON non reconnu.'); }
+  e.target.value = '';
+});
+
+loadState(); populateParcels(); populatePlots(); renderDataTable();
+</script>
+</body>
+</html>
