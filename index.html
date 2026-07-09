@@ -44,12 +44,17 @@
     .feet-grid { display:grid; grid-template-columns:1fr; gap:12px; }
     .foot { background:#fbfdff; border:1px solid var(--border); border-radius:18px; padding:13px; scroll-margin-top:120px; }
     .foot { max-width:760px; width:100%; margin:0 auto; }
+    .current-context { background:var(--soft); border:1px solid #cfe0ff; border-left:5px solid var(--blue); border-radius:14px; padding:11px 13px; margin:0 0 12px; color:#173860; font-weight:900; }
+    .current-context span { display:block; margin-top:3px; color:#365370; font-weight:750; font-size:.9rem; }
+    .option-check { justify-content:flex-start; padding-left:12px; }
     .foot-body { display:grid; gap:10px; }
     .foot-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; }
     .foot-title { font-size:1.02rem; font-weight:900; color:var(--navy); }
     .saved-dot { width:10px; height:10px; border-radius:50%; background:#c8d3e3; display:inline-block; }
     .saved-dot.saved { background:var(--ok); }
     .grape-row { display:grid; grid-template-columns:minmax(0,1fr) 110px; gap:12px; align-items:center; }
+    .grape-row.no-slider { grid-template-columns:1fr; }
+    .grape-row.no-slider .grapeNumber { min-height:58px; font-size:1.15rem; font-weight:800; text-align:center; }
     input[type="range"] { width:100%; accent-color:var(--blue); min-height:38px; }
     .step-row { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }
     .step-btn { min-height:46px; padding:8px 6px; font-size:1rem; border-radius:14px; background:#edf3ff; color:#0b3d76; }
@@ -96,7 +101,7 @@
 <body>
 <header>
   <h1>Comptage grappes par parcelles et placettes</h1>
-  <p>Base 10 pieds par placette, ajustable · curseur au pas de 0,5 · Jeunes / Mélange / Manquants · sauvegarde locale</p>
+  <p>Base 10 pieds par placette, ajustable · curseur optionnel au pas de 0,5 · Jeunes / Mélange / Manquants · sauvegarde locale</p>
 </header>
 <main>
   <section class="panel">
@@ -116,8 +121,9 @@
   </section>
 
   <section class="panel">
-    <div class="grid grid-2">
-      <div><label for="sliderMax">Maximum du curseur</label><input id="sliderMax" type="number" min="5" max="80" step="0.5" value="20"></div>
+    <div class="grid grid-3">
+      <div><label for="sliderMax">Maximum du curseur / saisie</label><input id="sliderMax" type="number" min="5" max="80" step="0.5" value="20"></div>
+      <div><label>Mode de saisie</label><label class="check option-check" for="noSliderMode"><input id="noSliderMode" type="checkbox">Sans curseur</label></div>
       <div><label for="comment">Commentaire placette</label><textarea id="comment" placeholder="Facultatif"></textarea></div>
     </div>
   </section>
@@ -146,6 +152,7 @@
         <span><i class="swatch young"></i>Jeunes</span>
       </div>
     </div>
+    <div class="current-context" id="currentContextReminder">Parcelle : -<span>Placette : -</span></div>
     <div class="feet-grid" id="feetGrid"></div>
   </section>
 
@@ -1630,13 +1637,31 @@ function loadState() {
   try { state = JSON.parse(localStorage.getItem(LS_KEY)) || state; } catch(e) {}
   try { state.prefs = JSON.parse(localStorage.getItem(LS_PREFS)) || state.prefs || {}; } catch(e) {}
   $('operator').value = state.prefs.operator || '';
-  $('date').value = state.prefs.date || todayISO();
+  $('date').value = todayISO();
   $('sliderMax').value = state.prefs.sliderMax || 20;
+  if($('noSliderMode')) $('noSliderMode').checked = !!state.prefs.noSliderMode;
+  updateInputModeDisplay();
+}
+function currentPrefs() {
+  return {
+    ...(state.prefs || {}),
+    operator: $('operator').value,
+    date: $('date').value || todayISO(),
+    sliderMax: $('sliderMax').value,
+    noSliderMode: !!($('noSliderMode') && $('noSliderMode').checked)
+  };
 }
 function saveState() {
+  state.prefs = currentPrefs();
   localStorage.setItem(LS_KEY, JSON.stringify(state));
-  localStorage.setItem(LS_PREFS, JSON.stringify({ operator:$('operator').value, date:$('date').value, sliderMax:$('sliderMax').value }));
+  localStorage.setItem(LS_PREFS, JSON.stringify(state.prefs));
   updateProgress();
+}
+function updateInputModeDisplay() {
+  const cb = $('noSliderMode');
+  if(!cb) return;
+  const label = cb.closest('.check');
+  if(label) label.classList.toggle('active', cb.checked);
 }
 
 function populateParcels() {
@@ -1657,6 +1682,8 @@ function render() {
   if(!plot) return;
   $('cepagePill').textContent = 'Cépage : ' + normalizeCepage(row.cepage);
   $('plotPill').textContent = `${plot.p} · rang/pied repère : ${plot.repere}`;
+  if($('currentContextReminder')) $('currentContextReminder').innerHTML = `Parcelle : ${escapeHtml(row.parcelle)}<span>Placette : ${escapeHtml(plot.p)} · Repère rang/pied : ${escapeHtml(plot.repere)}</span>`;
+  updateInputModeDisplay();
   const rec = state.records[currentKey()] || { comment: row.commentaire || '', feet: defaultFeet(10) };
   $('comment').value = rec.comment ?? row.commentaire ?? '';
   renderFeet(rec.feet || []);
@@ -1667,15 +1694,16 @@ function render() {
 }
 function renderFeet(feet) {
   const max = Number($('sliderMax').value || 20);
+  const noSlider = !!($('noSliderMode') && $('noSliderMode').checked);
   const full = normalizeFeet(feet, 10);
   if($('footCountInfo')) $('footCountInfo').textContent = `${full.length} pied${full.length>1?'s':''} dans la placette`;
   $('feetGrid').innerHTML = full.map(f => `
     <article class="foot" data-foot="${f.pied_placette}">
       <div class="foot-head"><div class="foot-title">Pied ${f.pied_placette}</div><span class="saved-dot ${isFootFilled(f)?'saved':''}"></span></div>
       <label>Nombre de grappes</label>
-      <div class="grape-row">
-        <input class="grapeRange" type="range" min="0" max="${max}" step="0.5" value="${Number(f.grappes || 0)}" ${f.manquant?'disabled':''}>
-        <input class="grapeNumber" type="number" min="0" step="0.5" value="${Number(f.grappes || 0)}" ${f.manquant?'disabled':''}>
+      <div class="grape-row ${noSlider ? 'no-slider' : ''}">
+        ${noSlider ? '' : `<input class="grapeRange" type="range" min="0" max="${max}" step="0.5" value="${Number(f.grappes || 0)}" ${f.manquant?'disabled':''}>`}
+        <input class="grapeNumber" type="number" min="0" max="${max}" step="0.5" value="${Number(f.grappes || 0)}" ${f.manquant?'disabled':''}>
       </div>
       <div class="step-row" aria-label="Ajustement rapide du nombre de grappes">
         <button type="button" class="step-btn minus" data-step="-1">−1</button>
@@ -1703,22 +1731,30 @@ function attachFootEvents() {
       });
     };
     const syncValue = (value) => {
-      const max = Number(range.max || 20);
+      const max = Number($('sliderMax').value || (range ? range.max : 20) || 20);
       let val = Math.max(0, Math.min(max, Math.round(Number(value || 0)*2)/2));
-      range.value = val;
+      if(range) range.value = val;
       number.value = val;
       saveCurrent(false); updateSummary();
     };
     const sync = (src) => syncValue(src.value);
-    range.addEventListener('input', () => sync(range));
+    if(range) range.addEventListener('input', () => sync(range));
     number.addEventListener('input', () => sync(number));
     card.querySelectorAll('.step-btn').forEach(btn => btn.addEventListener('click', () => {
       if(missing.checked) return;
       syncValue(Number(number.value || 0) + Number(btn.dataset.step || 0));
     }));
     card.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', () => {
-      if(missing.checked) { range.value = 0; number.value = 0; range.disabled = true; number.disabled = true; }
-      else { range.disabled = false; number.disabled = false; }
+      // Choix exclusif par pied : Jeunes OU Mélange OU Manquants.
+      // On garde des cases à cocher pour conserver le visuel mobile existant,
+      // mais dès qu'une case est cochée, les deux autres sont automatiquement décochées.
+      if(cb.checked) {
+        card.querySelectorAll('input[type="checkbox"]').forEach(other => {
+          if(other !== cb) other.checked = false;
+        });
+      }
+      if(missing.checked) { if(range) range.value = 0; number.value = 0; if(range) range.disabled = true; number.disabled = true; }
+      else { if(range) range.disabled = false; number.disabled = false; }
       refreshToggleVisuals();
       saveCurrent(false); updateSummary();
     }));
@@ -1998,6 +2034,7 @@ $('nextPlotSticky').addEventListener('click', () => { saveCurrent(false); nextPl
 $('prevPlotSticky').addEventListener('click', () => { saveCurrent(false); nextPlot(-1); window.scrollTo({top:0, behavior:'smooth'}); });
 $('saveBtnSticky').addEventListener('click', () => saveCurrent(true));
 $('sliderMax').addEventListener('change', () => { saveCurrent(false); render(); });
+$('noSliderMode').addEventListener('change', () => { updateInputModeDisplay(); saveCurrent(false); render(); });
 $('operator').addEventListener('change', saveState); $('date').addEventListener('change', saveState);
 $('exportExcelTable').addEventListener('click', exportExcelTable); $('exportCsv').addEventListener('click', exportCsvLong); $('exportSummary').addEventListener('click', exportSummaryCsv); $('exportJson').addEventListener('click', exportJson);
 $('clearCurrent').addEventListener('click', clearCurrent); $('clearAll').addEventListener('click', clearAll);
